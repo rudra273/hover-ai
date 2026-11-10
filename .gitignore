@@ -1,0 +1,10 @@
+node_modules/
+.venv/
+*.log
+.DS_Store
+
+# secrets & local data — never commit
+.env
+.env.*
+orbit-settings.json
+orbit-chats.json

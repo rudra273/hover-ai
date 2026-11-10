@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Orbit</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="theme-glass">
+    <!-- ===== SVG icon sprite (defined once, referenced via <use>) ===== -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <defs>
+        <!-- Shared gradients for the animated orbit mark (titlebar + empty state).
+             Defined once here; referenced document-wide via url(#...). -->
+        <!-- planet: lit from the upper-left -->
+        <radialGradient id="lg-core" cx="35%" cy="30%" r="80%">
+          <stop offset="0%"  stop-color="#e9eeff"/>
+          <stop offset="45%" stop-color="#8aa4ff"/>
+          <stop offset="100%" stop-color="#5b70e6"/>
+        </radialGradient>
+        <!-- comet tail: fades out behind the satellite (userSpaceOnUse so
+             the gradient rides along with the rotating .mark-spin group) -->
+        <linearGradient id="lg-trail" x1="12" y1="2.6" x2="21.4" y2="12" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"   stop-color="#45e0c8" stop-opacity="0"/>
+          <stop offset="55%"  stop-color="#45e0c8" stop-opacity=".55"/>
+          <stop offset="100%" stop-color="#9db2ff"/>
+        </linearGradient>
+        <!-- Orbit logo (static): planet + inclined orbit + satellite with a short tail -->
+        <symbol id="i-orbit" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3.2" fill="currentColor"/>
+          <ellipse cx="12" cy="12" rx="9.2" ry="4.1" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".45" transform="rotate(-24 12 12)"/>
+          <path d="M13.5 3.9a9.2 4.1 0 0 1 6.6 3.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".7" transform="rotate(-24 12 12)"/>
+          <circle cx="19.6" cy="7.5" r="1.8" fill="currentColor"/>
+        </symbol>
+        <symbol id="i-send" viewBox="0 0 24 24">
+          <path d="M4 11.5 19 4l-4.2 15-3.3-6.2L4 11.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        </symbol>
+        <symbol id="i-mic" viewBox="0 0 24 24">
+          <rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </symbol>
+        <symbol id="i-stop" viewBox="0 0 24 24">
+          <rect x="6.5" y="6.5" width="11" height="11" rx="2.5" fill="currentColor"/>
+        </symbol>
+        <symbol id="i-listen" viewBox="0 0 24 24">
+          <path d="M4 14v-4a8 8 0 0 1 16 0v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <rect x="3" y="13" width="4" height="6" rx="2" fill="currentColor"/>
+          <rect x="17" y="13" width="4" height="6" rx="2" fill="currentColor"/>
+        </symbol>
+        <!-- Settings: horizontal sliders (unambiguous vs. a sun/brightness gear) -->
+        <symbol id="i-settings" viewBox="0 0 24 24">
+          <path d="M4 7h10M18 7h2M4 17h2M10 17h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="16" cy="7" r="2.3" fill="none" stroke="currentColor" stroke-width="1.8"/>
+          <circle cx="8" cy="17" r="2.3" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        </symbol>
+        <symbol id="i-close" viewBox="0 0 24 24">
+          <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </symbol>
+        <symbol id="i-trash" viewBox="0 0 24 24">
+          <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M10 11v5M14 11v5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        </symbol>
+        <symbol id="i-sidebar" viewBox="0 0 24 24">
+          <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/>
+          <path d="M9 4.5v15" fill="none" stroke="currentColor" stroke-width="1.7"/>
+        </symbol>
+        <symbol id="i-plus" viewBox="0 0 24 24">
+          <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+        </symbol>
+        <symbol id="i-copy" viewBox="0 0 24 24">
+          <rect x="9" y="9" width="11" height="11" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+          <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        </symbol>
+        <symbol id="i-check" viewBox="0 0 24 24">
+          <path d="M5 12.5 10 17.5 19.5 6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </symbol>
+        <symbol id="i-regen" viewBox="0 0 24 24">
+          <path d="M4.5 12a7.5 7.5 0 0 1 12.9-5.2L20 9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M19.5 12a7.5 7.5 0 0 1-12.9 5.2L4 15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M20 5v4h-4M4 19v-4h4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        </symbol>
+        <symbol id="i-edit" viewBox="0 0 24 24">
+          <path d="M4 20h4L18.5 9.5a2 2 0 0 0-2.8-2.8L5 17.2 4 20Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+          <path d="M14 8.5 16 10.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        </symbol>
+        <symbol id="i-restart" viewBox="0 0 24 24">
+          <path d="M12 4v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M7.5 6.6a7.5 7.5 0 1 0 9 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </symbol>
+        <symbol id="i-image" viewBox="0 0 24 24">
+          <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/>
+          <circle cx="8.5" cy="9.5" r="1.6" fill="currentColor"/>
+          <path d="M4 17l4.5-4.5a1.5 1.5 0 0 1 2 0L20 19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        </symbol>
+        <!-- Reasoning / "thinking": AI sparkle (4-point star + small accent star) -->
+        <symbol id="i-spark" viewBox="0 0 24 24">
+          <path d="M10 2.5c.8 4.4 2.4 6 6.8 6.8-4.4.8-6 2.4-6.8 6.8-.8-4.4-2.4-6-6.8-6.8 4.4-.8 6-2.4 6.8-6.8Z" fill="currentColor"/>
+          <path d="M18 13.5c.4 2 1.1 2.7 3.1 3.1-2 .4-2.7 1.1-3.1 3.1-.4-2-1.1-2.7-3.1-3.1 2-.4 2.7-1.1 3.1-3.1Z" fill="currentColor" opacity=".65"/>
+        </symbol>
+      </defs>
+    </svg>
+
+    <div id="app">
+      <!-- Title / drag bar -->
+      <header id="titlebar">
+        <!-- macOS traffic-light window controls (left) -->
+        <div class="traffic no-drag">
+          <button id="tlClose" class="light close" title="Hide Orbit"><span class="glyph">×</span></button>
+          <button id="tlMin" class="light min" title="Minimize to strip"><span class="glyph">−</span></button>
+          <button id="tlZoom" class="light zoom" title="Widen window"><span class="glyph">+</span></button>
+        </div>
+
+        <button id="sidebarBtn" class="iconbtn no-drag" title="Chat history">
+          <svg viewBox="0 0 24 24"><use href="#i-sidebar"/></svg>
+        </button>
+
+        <div class="brand drag">
+          <svg class="logo orbit-mark" viewBox="0 0 24 24" aria-hidden="true">
+            <!-- .mark-tilt sets the orbital inclination; .mark-plane squashes the
+                 circular geometry so it reads as an ellipse; .mark-spin revolves
+                 the satellite + its trail around the planet. -->
+            <g class="mark-tilt"><g class="mark-plane">
+              <circle class="mark-path" cx="12" cy="12" r="9.4"/>
+              <g class="mark-spin">
+                <!-- quarter-circle arc trailing the satellite -->
+                <path class="mark-trail" d="M12 2.6 A9.4 9.4 0 0 1 21.4 12"/>
+                <circle class="mark-sat" cx="21.4" cy="12" r="1.8"/>
+              </g>
+            </g></g>
+            <circle class="mark-core" cx="12" cy="12" r="3.1" fill="url(#lg-core)"/>
+            <circle class="mark-glint" cx="10.9" cy="10.8" r="0.85"/>
+          </svg>
+          <span class="name">Orbit</span>
+        </div>
+
+        <div class="titlebar-spacer"></div>
+
+        <div class="bar-actions no-drag">
+          <select id="skillSelect" title="Active skill"></select>
+          <select id="modelSelect" title="Active model"></select>
+          <button id="listenBtn" class="iconbtn" title="Listen to call / system audio">
+            <svg viewBox="0 0 24 24"><use href="#i-listen"/></svg>
+          </button>
+          <button id="thinkBtn" class="iconbtn" title="Toggle thinking mode">
+            <svg viewBox="0 0 24 24"><use href="#i-spark"/></svg>
+          </button>
+          <button id="settingsBtn" class="iconbtn" title="Settings">
+            <svg viewBox="0 0 24 24"><use href="#i-settings"/></svg>
+          </button>
+          <button id="restartBtn" class="iconbtn" title="Restart Orbit (fresh)">
+            <svg viewBox="0 0 24 24"><use href="#i-restart"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Chat-area wrapper holds the sliding history sidebar + the messages -->
+      <div id="chatarea">
+        <aside id="sidebar" class="closed">
+          <div class="sidebar-head">
+            <span class="sidebar-title">History</span>
+            <button id="newChatBtn" class="chip"><svg class="chip-ic" viewBox="0 0 24 24"><use href="#i-plus"/></svg> New chat</button>
+          </div>
+          <div id="chatList" class="chat-list"></div>
+        </aside>
+        <div id="sidebarScrim" class="hidden"></div>
+
+        <!-- Chat transcript -->
+        <main id="messages"></main>
+      </div>
+
+      <!-- Live transcript panel (shown while Listen is on) -->
+      <section id="listenPanel" class="hidden">
+        <div class="lp-head">
+          <span class="lp-title"><svg class="lp-ic" viewBox="0 0 24 24"><use href="#i-listen"/></svg> <span id="lpStatus">Listening…</span></span>
+          <div class="lp-actions">
+            <button id="lpClear" class="lp-btn" title="Clear">Clear</button>
+            <button id="lpAdd" class="lp-btn primary" title="Add to message box">Add to message</button>
+          </div>
+        </div>
+        <div id="lpBody" class="lp-body"></div>
+      </section>
+
+      <!-- Composer -->
+      <footer id="composer">
+        <div class="input-wrap">
+          <textarea id="input" rows="1" placeholder="Ask Orbit…"></textarea>
+          <button id="micBtn" class="composer-btn mic" title="Speak to Orbit (voice input)">
+            <svg viewBox="0 0 24 24"><use href="#i-mic"/></svg>
+          </button>
+        </div>
+        <button id="sendBtn" class="composer-btn send" title="Send">
+          <svg viewBox="0 0 24 24"><use href="#i-send"/></svg>
+        </button>
+        <button id="stopBtn" class="composer-btn stop hidden" title="Stop">
+          <svg viewBox="0 0 24 24"><use href="#i-stop"/></svg>
+        </button>
+      </footer>
+    </div>
+
+    <!-- Settings drawer -->
+    <div id="settings" class="hidden">
+      <div class="settings-card">
+        <div class="settings-head">
+          <h2><svg class="head-ic" viewBox="0 0 24 24"><use href="#i-settings"/></svg> Settings</h2>
+          <button id="settingsClose" class="iconbtn" title="Close">
+            <svg viewBox="0 0 24 24"><use href="#i-close"/></svg>
+          </button>
+        </div>
+        <div class="settings-body">
+          <label>Model
+            <select id="setModel"></select>
+          </label>
+          <label class="row">Default thinking mode
+            <input type="checkbox" id="setThinking" />
+          </label>
+          <label>Temperature <span id="tempVal" class="muted"></span>
+            <input type="range" id="setTemp" min="0" max="1.5" step="0.05" />
+          </label>
+          <label>System prompt <span class="muted small">(base — always applied)</span>
+            <textarea id="setSystem" rows="3"></textarea>
+          </label>
+
+          <hr />
+          <details id="skillsSection">
+            <summary>Skills <span class="muted small">— layered on the base prompt</span></summary>
+            <div id="skillList" class="skill-list"></div>
+            <button id="addSkillBtn" class="skill-add">+ Add skill</button>
+          </details>
+
+          <hr />
+          <label class="row">Stealth (hide from screen-share)
+            <input type="checkbox" id="setStealth" />
+          </label>
+          <label>Opacity <span id="opVal" class="muted"></span>
+            <input type="range" id="setOpacity" min="0.3" max="1" step="0.02" />
+          </label>
+          <label>Theme
+            <select id="setTheme">
+              <option value="glass">Glass</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
+
+          <hr />
+          <details id="providersSection">
+            <summary>Providers <span class="muted small">— local & cloud models</span></summary>
+
+            <div class="prov-block">
+              <div class="prov-head">Local <span class="muted small">(Ollama)</span></div>
+              <label>Host
+                <input type="text" id="setHost" />
+              </label>
+              <p class="muted small">Models are whatever you've pulled in Ollama; they all appear in the dropdown.</p>
+            </div>
+
+            <!-- Gemini + OpenRouter blocks are built by app.js into these mounts -->
+            <div id="provGemini" class="prov-block" data-provider="gemini"></div>
+            <div id="provOpenrouter" class="prov-block" data-provider="openrouter"></div>
+
+            <p class="muted small">Keys are stored locally in your app-data folder (never in the project/git), or supply them as environment variables. Prices are USD per 1M tokens (input/output) and are just labels — edit freely.</p>
+          </details>
+
+          <hr />
+          <div class="muted small">Hotkeys (click a field, then press the combo)</div>
+          <label>Show / hide <input type="text" id="hkToggle" class="hk" readonly /></label>
+          <label>Focus input <input type="text" id="hkFocus" class="hk" readonly /></label>
+          <label>Clear chat <input type="text" id="hkClear" class="hk" readonly /></label>
+
+          <hr />
+          <details>
+            <summary>Audio copilot</summary>
+            <label>Source
+              <select id="setAudioSource">
+                <option value="system">System audio (the call)</option>
+                <option value="mic">Microphone</option>
+                <option value="both">Both</option>
+              </select>
+            </label>
+            <label>Whisper model
+              <select id="setWhisper">
+                <option value="tiny">tiny (fastest)</option>
+                <option value="base">base</option>
+                <option value="small">small</option>
+                <option value="medium">medium (best)</option>
+              </select>
+            </label>
+            <label class="row">Auto-show when speech detected
+              <input type="checkbox" id="setAutoShow" />
+            </label>
+          </details>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="hidden"></div>
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+# Orbit CLI — one entry point for setup, run, and stop.
+#
+#   ./orbit init    check prereqs, create venv + install deps, npm install, build the app
+#   ./orbit run     launch Orbit (the packaged /Applications/Orbit.app)
+#   ./orbit stop    quit a running Orbit
+#
+# Tip: add the repo to your PATH (or symlink ./orbit into /usr/local/bin) to call
+# it as `orbit <cmd>` from anywhere.
+set -e
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT"
+
+APP="/Applications/Orbit.app"
+VENV="$ROOT/.venv"
+
+# pretty output
+c_g(){ printf '\033[32m%s\033[0m\n' "$1"; }   # green
+c_y(){ printf '\033[33m%s\033[0m\n' "$1"; }   # yellow
+c_r(){ printf '\033[31m%s\033[0m\n' "$1"; }   # red
+c_b(){ printf '\033[1m%s\033[0m\n' "$1"; }    # bold
+
+ver_ge() { # ver_ge A B  -> true if A >= B (dotted versions)
+  [ "$(printf '%s\n%s\n' "$2" "$1" | sort -t. -k1,1n -k2,2n -k3,3n | head -1)" = "$2" ]
+}
+
+cmd_init() {
+  c_b "Orbit init — checking prerequisites…"
+
+  # --- macOS only (system-audio capture relies on ScreenCaptureKit) ---
+  if [ "$(uname)" != "Darwin" ]; then
+    c_r "✗ Orbit is macOS-only (Apple Silicon)."; exit 1
+  fi
+
+  # --- Python 3.12+ ---
+  PY="$(command -v python3.12 || command -v python3 || true)"
+  if [ -z "$PY" ]; then
+    c_r "✗ Python not found. Install Python 3.12+ (e.g. brew install python@3.12)."; exit 1
+  fi
+  PYV="$("$PY" -c 'import sys;print("%d.%d"%sys.version_info[:2])')"
+  if ! ver_ge "$PYV" "3.10"; then
+    c_r "✗ Python $PYV found, but 3.10+ is required (3.12 recommended)."; exit 1
+  fi
+  c_g "✓ Python $PYV  ($PY)"
+
+  # --- Node 18+ ---
+  if ! command -v node >/dev/null 2>&1; then
+    c_r "✗ Node not found. Install Node 18+ (e.g. brew install node)."; exit 1
+  fi
+  NODEV="$(node -p 'process.versions.node')"
+  if ! ver_ge "$NODEV" "18.0"; then
+    c_r "✗ Node $NODEV found, but 18+ is required."; exit 1
+  fi
+  c_g "✓ Node $NODEV"
+
+  # --- Ollama (optional but recommended for the default local provider) ---
+  if command -v ollama >/dev/null 2>&1; then
+    c_g "✓ Ollama installed"
+  else
+    c_y "• Ollama not found — the local model won't work until you install it (https://ollama.com). Cloud providers still work via API keys."
+  fi
+
+  # --- Python venv + sidecar deps ---
+  if [ ! -d "$VENV" ]; then
+    c_b "→ Creating virtualenv (.venv)…"
+    "$PY" -m venv "$VENV"
+  fi
+  c_b "→ Installing transcription deps (mlx-whisper, numpy)…"
+  "$VENV/bin/python" -m pip install --upgrade pip >/dev/null
+  "$VENV/bin/python" -m pip install -r "$ROOT/sidecar/requirements.txt"
+
+  # --- Node deps (Electron) ---
+  c_b "→ Installing Node deps (Electron)…"
+  npm install
+
+  # --- Build the app bundle ---
+  c_b "→ Building Orbit.app…"
+  ./package-app.sh
+
+  echo
+  c_g "✓ Setup complete."
+  c_b "Next:  ./orbit run"
+  c_y "First run: macOS will ask for Screen Recording + Microphone permission — grant them, then ./orbit run again."
+}
+
+cmd_run() {
+  if [ ! -d "$APP" ]; then
+    c_r "✗ $APP not found. Run:  ./orbit init"; exit 1
+  fi
+  if pgrep -f "$APP/Contents/MacOS" >/dev/null 2>&1; then
+    c_y "Orbit is already running. Bringing it to the front…"
+  fi
+  c_g "→ Launching Orbit…"
+  # ELECTRON_RUN_AS_NODE leaks from some shells and breaks Electron — strip it.
+  env -u ELECTRON_RUN_AS_NODE -u ELECTRON_NO_ATTACH_CONSOLE open "$APP"
+}
+
+cmd_stop() {
+  if pgrep -f "Orbit.app" >/dev/null 2>&1; then
+    pkill -f "Orbit.app" && c_g "✓ Orbit stopped."
+  else
+    c_y "Orbit is not running."
+  fi
+}
+
+case "${1:-help}" in
+  init) cmd_init ;;
+  run)  cmd_run ;;
+  stop) cmd_stop ;;
+  restart) cmd_stop; sleep 1; cmd_run ;;
+  *)
+    c_b "Orbit CLI"
+    echo "  ./orbit init     set up (venv, deps, build the app)"
+    echo "  ./orbit run      launch Orbit"
+    echo "  ./orbit stop     quit Orbit"
+    echo "  ./orbit restart  stop then run"
+    ;;
+esac
